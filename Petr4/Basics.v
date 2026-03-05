@@ -2,10 +2,22 @@ From Stdlib Require Import Strings.String.
 From Stdlib Require Import Bool.Bool.
 From Stdlib Require Import Arith.Arith.
 From Stdlib Require Import Lists.List.
+From Stdlib Require Import Lia.
 
 Inductive Op : Type :=.
 
-Definition NW := prod nat (option nat).
+Definition len (n : nat) : nat :=
+  match n with
+  | 0 => 1
+  | S n' => S (Nat.log2 (S n'))
+  end.
+
+Inductive NW : nat -> option nat -> Type :=
+    | finite_nw (n : nat) (w : nat) :
+        (len n <= w) ->
+        NW n (Some w)
+    | infinite_nw (n : nat) : NW n None
+    .
 
 Inductive Direction : Type := 
     | IN
@@ -26,7 +38,7 @@ Inductive Base_type : Type :=
     | bstyp_type_variable_type (X : string)
 with Expression : Type :=
     | exp_booleans (b : bool)
-    | exp_integers (nw : NW)
+    | exp_integers {n : nat} {wo : option nat} (nw : NW n wo)
     | exp_variables (x : string) 
     | exp_array_accesses (exp1 exp2 : Expression)
     | exp_bitstring_slices (exp1 exp2 exp3 : Expression)
@@ -36,14 +48,14 @@ with Expression : Type :=
     | exp_records (args : list (string * Expression))
     | exp_fields (exp : Expression) (f : string)
     | exp_type_members (X f : string)
-    | exp_function_call (exp : Expression) (generics : list Base_type) (args : list Expression)
+    | exp_function_call (exp : Expression) (rhos : list Base_type) (args : list Expression)
 .
 
 Inductive Function_type : Type :=
     | fntyp_data_type (rho : Base_type)
     | fntyp_table
-    | fntyp_function_type (generics : list string) (args : list (Direction * string * Base_type)) (ret : Base_type)
-    | fntyp_constructor_type (args : list (string * Function_type)) (ret : Function_type) 
+    | fntyp_function_type (generics : list string) (params : list (Direction * string * Base_type)) (ret : Base_type)
+    | fntyp_constructor_type (params : list (string * Function_type)) (ret : Function_type) 
 .
 
 Inductive Keys : Type :=
@@ -81,6 +93,7 @@ Inductive Types_declaration : Type :=
 Inductive Objects_declaration : Type :=
     | objdecl_tables (x : string) (keys : list Keys) (acts : list Actions)
     | objdecl_controls (X : string) (vars : list (Direction * string * Function_type)) (args : list (string * Function_type)) (decls : list Declaration) (stmt : Statement)
+    | objdecl_functions (tau : Function_type) (x : string) (Xs : list string) (params : list (Direction * string * Function_type)) (stmt : Statement)
 
 with Declaration : Type :=
     | var_declaration (var_decl : Variable_declaration)
@@ -99,9 +112,9 @@ Definition Prog := list Declaration.
 
 Definition Location := nat.
 
-Definition Environment := string -> Location.
+Definition Environment := list (string * Location).
 
-Definition Store_typing_context := Location -> Function_type.
+Definition Store_typing_context := list (Location * Function_type).
 
 (*Definition Control_plane : Loc -> Value -> *)
 
@@ -137,4 +150,4 @@ Inductive Type_definition_context : Type :=
     | tydefctx_type_variable_and_definition_context (X : string) (ctx : Type_definition_context)
 .
 
-Definition Constant_context := string -> Value.
+Definition Constant_context := list (string * Value).
